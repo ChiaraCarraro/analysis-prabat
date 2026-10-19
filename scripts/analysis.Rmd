@@ -285,15 +285,6 @@ accuracy_by_child_plot_pilot_kenya  <- ggplot(post_both, aes(x = age, y = Estima
 
 accuracy_by_child_plot_pilot_kenya
 
-ggsave(
-  filename = "../figures/accuracy_by_child_plot_pilot_kenya.png",
-  plot     = accuracy_by_child_plot_pilot_kenya,
-  width    = 7,
-  height   = 4,
-  units    = "in",
-  dpi      = 600
-)
-
 ```
 
 
@@ -353,7 +344,7 @@ accuracy_by_child_tr <- data_turkiye %>%
     .groups = "drop"
   )
 
-accuracy_by_child_plot_empty_tr  <- ggplot(post_t, aes(x = age, y = Estimate,)) +
+accuracy_by_child_plot_tr  <- ggplot(post_t, aes(x = age, y = Estimate,)) +
   geom_smooth(aes(ymin = Q2.5, ymax = Q97.5), stat = "identity", alpha = .1) +
   geom_line(color = "green4", linewidth = 1) +
   # geom_point(
@@ -369,18 +360,7 @@ accuracy_by_child_plot_empty_tr  <- ggplot(post_t, aes(x = age, y = Estimate,)) 
   coord_cartesian(ylim = c(0, 1)) +
   theme_minimal(base_size = 12) 
 
-accuracy_by_child_plot_empty_tr
-
-ggsave(
-  filename = "../figures/accuracy_by_child_plot_empty_tr.png",
-  plot     = accuracy_by_child_plot_empty_tr,
-  width    = 7,
-  height   = 6,
-  units    = "in",
-  dpi      = 600
-)
-
-
+accuracy_by_child_plot_tr
 
 ```
 
@@ -388,9 +368,9 @@ ggsave(
 ## Figure 4: Accuracy Kenya and Türkiye pilot data
 
 ```{r}
-plot_combined_pilot <- plot_grid(
+figure_4 <- plot_grid(
   accuracy_by_child_plot_pilot_kenya,
-  accuracy_by_child_plot_empty_tr,
+  accuracy_by_child_plot_tr,
   align = "h",
   ncol = 2,
   labels = c("A", "B"),
@@ -398,8 +378,8 @@ plot_combined_pilot <- plot_grid(
 )
 
 ggsave(
-  "../figures/plot_combined_pilot.png",
-  plot = plot_combined_pilot,
+  "../figures/figure_4.png",
+  plot = figure_4,
   width = 13,
   height = 5
 )
@@ -474,7 +454,7 @@ accuracy_by_child <- data_mod %>%
     .groups = "drop"
   )
 
-accuracy_by_child_plot_empty  <- ggplot(post, aes(x = age, y = Estimate,)) +
+figure_1b  <- ggplot(post, aes(x = age, y = Estimate,)) +
   geom_smooth(aes(ymin = Q2.5, ymax = Q97.5), stat = "identity", alpha = .1) +
   geom_line(color = "green4", linewidth = 1) +
   geom_point(
@@ -497,11 +477,11 @@ accuracy_by_child_plot_empty  <- ggplot(post, aes(x = age, y = Estimate,)) +
   coord_cartesian(ylim = c(0, 1)) +
   theme_minimal(base_size = 15)
 
-accuracy_by_child_plot_empty
+figure_1b
 
 ggsave(
-  filename = "../figures/accuracy_by_child_de.png",
-  plot     = accuracy_by_child_plot_empty,
+  filename = "../figures/figure_1b.png",
+  plot     = figure_1b,
   width    = 7,
   height   = 4,
   units    = "in",
@@ -714,7 +694,7 @@ rasch_fit_mode %>%
     axis.text.x = element_text(size = 7),  # Changes y-axis tick label font size
   )
 
-ggsave("../figures/rasch_infit_outfit.png", width = 8, height = 6)
+ggsave("../figures/figure2_SM.png", width = 8, height = 6)
 ```
 
 ```{r}
@@ -788,8 +768,7 @@ ggplot(discrimination_2PL, aes(x = task, y = Estimate)) +
   labs(x = "Item", y = "Estimate") +
   theme_few()
 
-ggsave("../figures/2PL_disc.png", width = 8, height = 6)
-
+ggsave("../figures/figure1_SM.png", width = 8, height = 6)
 ```
 
 ##### ICC Plot for 2PL
@@ -903,14 +882,6 @@ model_comparison_plot <- model_comparison %>%
 
 model_comparison_plot
 
-ggsave(
-  "../figures/model_comparison.png",
-  plot = model_comparison_plot,
-  width = 5,
-  height = 5,
-  dpi = 600
-)
-
 ```
 
 #### Global fit indices for a Rasch model for each subset
@@ -1017,7 +988,7 @@ item_colours <- setNames(
   item_levels
 )
 
-p_icc1PL_win <- ggplot(
+figure_2 <- ggplot(
   icc1_winners,
   aes(
     x = theta,
@@ -1080,11 +1051,11 @@ p_icc1PL_win <- ggplot(
     legend.title = element_text(size = 14)
   )
 
-p_icc1PL_win
+figure_2
 
 ggsave(
-  "../figures/ICC_1PL_winners.png",
-  plot = p_icc1PL_win,
+  "../figures/figure_2.png",
+  plot = figure_2,
   width = 12,
   height = 5,
   units = "in",
@@ -1155,55 +1126,11 @@ dif_sex_draws <- readRDS("../saves/dif_sex_draws.rds")
 #             lci = hdi_lower(val),
 #              .groups = "drop")
 
-# If an item shows very different effects across sexes (and the intervals don’t overlap much), that suggests DIF by sex
 # saveRDS(final_dif_sex, "../saves/model_params_dif_sex.rds")
 # 
 final_dif_sex <- readRDS("../saves/model_params_dif_sex.rds")
 
-dif <- final_dif_sex %>%
-  group_by(task) %>%
-  mutate(
-    dif = abs(abs(mode) - lag(abs(mode)))
-  ) %>%
-  fill(dif, .direction = "up") %>%
-  ungroup() %>%
-  mutate(
-    task = factor(task, levels = rev(item_levels))
-  ) %>%
-  ggplot(aes(x = task)) +
-	geom_point(aes(col = sex, y = lci), position = position_dodge(width = .5)) +
-  geom_point(aes(col = sex, y = uci), position = position_dodge(width = .5)) +
-  geom_linerange(aes(col = sex, ymin = lci + 0.1, ymax = uci-0.1), position = position_dodge(width = .5), alpha = .5) +
-	coord_flip() +
-  scale_color_manual(
-    values = c(
-      "m" = "yellowgreen",
-      "w" = "magenta4"
-    ),
-    labels = c("male","female"), name = "Group")+
-	labs(x = "Item", y = "Easiness estimate")+
-  theme_minimal(base_size = 12)
-
-ggsave(
-  "../figures/dif_intervals.png",
-  plot = dif,
-  width = 12,
-  height = 6
-)
-
-final_dif_sex%>%
-  pivot_wider(names_from = sex, values_from = c(mode,uci,lci))%>%
-  ggplot(., aes(x = mode_w, y = mode_m))+
-  geom_abline(intercept = 0, slope = 1, lty = 3, alpha = .75)+
-  geom_point(pch = 1, size = 2, stroke  = 1)+
-  geom_linerange(aes(ymin = lci_m, ymax = uci_m),  alpha = .25, lty = 1)+
-  geom_linerange(aes(xmin = lci_w, xmax = uci_w),  alpha = .25, lty = 1)+
-  #geom_text(aes(label = item, x = uci_f +0.2))+
-  labs(x = "Group: female", y = "Group: male")+
-  scale_color_viridis_d()+
-  guides(col = F)+
-  coord_fixed()+
-  theme_minimal(base_size = 12)
+# If an item shows very different effects across sexes (and the intervals don’t overlap much), that suggests DIF by sex
 
 pdif <- final_dif_sex%>%
   pivot_wider(names_from = sex, values_from = c(mode,uci,lci))%>%
@@ -1561,19 +1488,11 @@ p_trr <- ggplot(
 
 p_trr
 
-ggsave(
-  "../figures/plot_trr.png",
-  plot = p_trr,
-  width = 12,
-  height = 6
-)
-
-
-plot_combined <- plot_grid(plot_grid(pdif, p_trr, p_val, align = 'h', ncol = 3, labels = c("A","B","C")))
+figure_3 <- plot_grid(plot_grid(pdif, p_trr, p_val, align = 'h', ncol = 3, labels = c("A","B","C")))
 
 ggsave(
-  "../figures/plot_combined.png",
-  plot = plot_combined,
+  "../figures/figure_3.png",
+  plot = figure_3,
   width = 15,
   height = 5
 )
