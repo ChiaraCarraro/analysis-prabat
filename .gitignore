@@ -9,6 +9,12 @@
 # User-specific files
 .Ruserdata
 
+# Large Bayesian model objects
+saves/irt1PL1.rds
+saves/irt2PL_guess_fit_sel.rds
+saves/dif_sex_draws.rds
+saves/m_age_acc_de.rds
+
 # Example code in package build process
 *-Ex.R
 
