@@ -22,6 +22,6 @@ Link to task (constantly updated): https://devpsy.web.leuphana.de/prabat
     ├── analysis.Rmd                    <-- all analysis code, including item selection and validity study
     ├── selected_model_comparison.R     <-- script for model comparison
     ├── simulated_annealing.R           <-- simulated annealing script (called in selected_model_comparison.R)
-    └── irt2PL_guess_fit_sel.R.Rmd      <-- script for 2PL IRT model
+    └── irt2PL.R      <-- script for 2PL IRT model
 
 ```
