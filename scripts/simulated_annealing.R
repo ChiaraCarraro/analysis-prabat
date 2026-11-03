@@ -19,9 +19,9 @@ func2 <- function(x){
 
 # k = items number in the subset
 
-# Objective funciton to determine score
+# Objective function to determine score
 
-score_fn <- function(subset) {
+score_fn <- function(subset, disc_penalty) {
   easinesses <- sort(easiness[subset]) # takes easiness for the selected items
   nn_dists <- rep(0, sum(subset)-1) # a vector of 0s, distances between consecutive sorted values: there are k-1 such gaps.
   for(i in 1:sum(subset)-1) { 
@@ -32,7 +32,7 @@ score_fn <- function(subset) {
   # dividing by 3 to scale it down
   
   var_disc_sample <- discrimination[subset]
-  var_disc_2PL <- -1*var(var_disc_sample)*6
+  var_disc_2PL <- -disc_penalty*var(var_disc_sample)
   
   infit_sample <- infit[subset] # take infit for selected items
   infit_dist <- unlist(lapply(infit_sample, func)) # apply function to calculate absolute value of distance from 1

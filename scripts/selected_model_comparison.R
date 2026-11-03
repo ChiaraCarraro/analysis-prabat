@@ -8,7 +8,7 @@ library(loo)
 
 ## load data and models
 
-data <- read_csv("./data_4IRT.csv")%>%
+data <- read_csv("../data/data_4IRT.csv")%>%
   mutate(age_group = factor(substr(age, 1,1)))
 
 # data <- data%>%
@@ -26,6 +26,8 @@ items <- data %>%
   distinct(task) %>%
   arrange(task) %>%
   pull(task)
+
+item_set <- items
 
 easiness_1PL <- ranef(irt1PL)$task %>%
   as_tibble(rownames = "task") %>%
@@ -47,34 +49,31 @@ disc_2PL <- coef(irt2PL)$task[, , "logalpha_Intercept"]%>%
   arrange(task) %>%
   pull(Estimate)
 
-source("./irt-analysis/simulated_annealing.R") # üü
+source("./simulated_annealing.R") 
 
 ## compare models and save output
 
 ks <- c(18, 19, 20, 21, 22, 23)
-n_runs <- 1
+n_runs <- 1 # in case you want to run it multiple times - 
 model_comparison <- tibble()
 
 for (k in ks) {
+  for (run_id in seq_len(n_runs)) {
 
-  for (item_set_name in names(items_exclusion)) {
-    
-    item_set <- items_exclusion[[item_set_name]]
-
-    sim <- simulated_annealing_rasch(item_set, k)
+    sim <- simulated_annealing_rasch(item_set, k, disc_penalty = 6)
     keep <- as.logical(unlist(sim$best_subset))
-
+  
     sel <- item_set[keep]
-
+  
     # temporary diagnostics
     stopifnot(
       length(keep) == length(item_set),
       length(sel) == sum(keep, na.rm = TRUE),
       !any(is.na(sel))
     )
-
+  
     sub_dat <- data %>% filter(task %in% sel)
-
+  
     # --- refit models + LOO (NO moment_match) ---
     m1PL <- update(
       irt1PL, newdata = sub_dat,
@@ -82,18 +81,18 @@ for (k in ks) {
       backend = "cmdstanr",
       control = list(adapt_delta = 0.99, max_treedepth = 15)
     ) %>% add_criterion("loo", cores = 1, ndraws = 2000)
-
+  
     m2PL <- update(
       irt2PL, newdata = sub_dat,
       chains = 6, cores = 6, threads = threading(2),
       backend = "cmdstanr",
       control = list(adapt_delta = 0.99, max_treedepth = 15)
     ) %>% add_criterion("loo", cores = 1, ndraws = 2000)
-
+  
     # pull loo objects from brms fits
     loo1 <- m1PL$criteria$loo
     loo2 <- m2PL$criteria$loo
-
+  
     # 1) per-model absolute LOO
     loo_tbl <- bind_rows(
       tibble(model = "1PL",
@@ -107,21 +106,21 @@ for (k in ks) {
             looic = loo2$estimates["looic","Estimate"],
             se_looic = loo2$estimates["looic","SE"])
     )
-
+  
     # 2) pairwise diffs (named list keeps model labels stable)
     comp_tbl <- loo_compare(list("1PL" = loo1, "2PL" = loo2)) %>%
       as.data.frame() %>%
       tibble::rownames_to_column("model") %>%
       as_tibble() %>%
       select(model, elpd_diff, se_diff)
-
+  
     # 3) join + add SA scorings + items
     final_tbl <- loo_tbl %>%
       left_join(comp_tbl, by = "model") %>%
       mutate(
         k = k,
+        run = run_id,
         n_items = length(sel),
-        item_set = item_set_name,
         items = list(sel),
         best_score   = sim$best_score,
         spacing      = sim$spacing,
@@ -131,9 +130,9 @@ for (k in ks) {
         disc_penalty = sim$disc_penalty
         
       )
-
+  
     model_comparison <- bind_rows(model_comparison, final_tbl)
-    
-    saveRDS(model_comparison, "./irt-analysis/saves/model_comparison_18to23.rds")
   }
+  
+  saveRDS(model_comparison, "../saves/model_comparison_18to23.rds")
 }

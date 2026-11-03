@@ -79,6 +79,14 @@ get_m2_fit <- purrr::possibly(function(mod){
 ))
 
 
+format_p_plotmath <- function(p) {
+  if (p < .001) {
+    "italic(p) < .001"
+  } else {
+    paste0("italic(p) == ", sub("^0\\.", ".", sprintf("%.3f", p)))
+  }
+}
+
 ```
 
 # Uploading Data for main analysis
@@ -90,6 +98,8 @@ data <- read_csv("../data/data_4IRT.csv")%>%
 # Dataset to work with models
 irt_dat <- data%>%
   dplyr::select(subjID, score, task, sex)
+
+final_item_set <- readRDS("../saves/final_item_set.rds") # already loading the final item set for the kenyan and turkish models
 
 ```
 
@@ -116,7 +126,6 @@ data %>%
 
 ```{r}
 data_kenya <- read_csv("../data/data_kenya.csv")%>%
-  filter(Item %in% final_item_set) %>%
   mutate(age_group = factor(substr(Age, 1,1))) %>%
   mutate(
     lang = coalesce(
@@ -125,7 +134,7 @@ data_kenya <- read_csv("../data/data_kenya.csv")%>%
 
 data_kenya <- data_kenya %>%
   rename(age = Age) %>%
-  mutate(age_z = (age - mean(age)/sd(age)))
+  mutate(age_z = ((age - mean(age))/sd(age)))
 
 ```
 
@@ -143,7 +152,7 @@ data_kik <- data_kenya %>%
 #   cores = 4,
 #   iter = 4000
 # )
-
+# 
 # saveRDS(model_pilot_kik, "../saves/model_pilot_kik.rds")
 model_pilot_kik <- readRDS("../saves/model_pilot_kik.rds")
 ```
@@ -182,20 +191,6 @@ accuracy_by_child_kik <- data_kik %>%
     .groups = "drop"
   )
 
-binned_kik <- data_kik %>%
-  mutate(
-    bin_year = floor(age),
-    bin_mid  = bin_year + 0.5,
-    bin_mid_c = bin_mid - age_mean_kik
-  ) %>%
-  filter(!bin_year %in% c(2, 8)) %>%
-  group_by(bin_year, bin_mid, bin_mid_c) %>%
-  tidyboot_mean(
-    column = correct,
-    na.rm = TRUE
-  ) %>%
-  ungroup()
-
 ndata_kik <- data_kik %>%
   distinct(age_z, .keep_all = TRUE)
 
@@ -217,20 +212,6 @@ accuracy_by_child_kis <- data_kis %>%
     age   = first(age),
     .groups = "drop"
   )
-
-binned_kis <- data_kis %>%
-  mutate(
-    bin_year = floor(age),
-    bin_mid  = bin_year + 0.5,
-    bin_mid_c = bin_mid - age_mean_kis
-  ) %>%
-  filter(!bin_year %in% c(2, 8)) %>%
-  group_by(bin_year, bin_mid, bin_mid_c) %>%
-  tidyboot_mean(
-    column = correct,
-    na.rm = TRUE
-  ) %>%
-  ungroup()
 
 ndata_kis <- data_kis %>%
   distinct(age_z, .keep_all = TRUE)
@@ -255,11 +236,6 @@ post_both <- bind_rows(
   mutate(post_kik,  group = "Kikuyu")
 )
 
-binned_both <- bind_rows(
-  mutate(binned_kis, group = "Kiswahili"),
-  mutate(binned_kik,  group = "Kikuyu")
-)
-
 points_both <- bind_rows(
   mutate(accuracy_by_child_kis, group = "Kiswahili"),
   mutate(accuracy_by_child_kik,  group = "Kikuyu")
@@ -281,7 +257,7 @@ accuracy_by_child_plot_pilot_kenya  <- ggplot(post_both, aes(x = age, y = Estima
   scale_x_continuous(breaks = year_breaks, labels = year_breaks) +
   labs(x = "Age in years", y = "Accuracy", colour = "Language", fill = "Language") +
   coord_cartesian(ylim = c(0, 1)) +
-  theme_minimal(base_size = 12)
+  theme_minimal(base_size = 15)
 
 accuracy_by_child_plot_pilot_kenya
 
@@ -291,7 +267,7 @@ accuracy_by_child_plot_pilot_kenya
 ### Accuracy - Turkish pilot
 
 ```{r}
-data_turkiye <- read_csv("../data/data_turkiye.csv")
+data_turkiye <- read_csv("../data/data_turkiye.csv") # turkish pilot was conducetd on the 19 item version
 
 # m_age_acc_tr <- brm(
 #   correct ~ age_z +
@@ -311,26 +287,19 @@ m_age_acc_tr <- readRDS("../saves/m_age_acc_tr.rds")
 
 ```{r}
 # Observed accuracy by age bin
-binned <- data_turkiye %>%
-  mutate(
-    bin_year = floor(age),
-    bin_mid  = bin_year + 0.5,
-    bin_mid_c = bin_mid - age_mean
-  ) %>%
-  filter(!bin_year %in% c(2, 8, 3, 7)) %>%
-  group_by(bin_year, bin_mid, bin_mid_c) %>%
-  tidyboot_mean(
-    column = correct,
-    na.rm = TRUE
-  ) %>%
-  ungroup()
 
 age_center <- mean(data_turkiye$age, na.rm = TRUE)
 age_scale  <- sd(data_turkiye$age, na.rm = TRUE)
 
 ndata_t <- data_turkiye %>%
-  mutate(age_z = scale(age)) %>%
+  mutate(age_z = age_z) %>%
   distinct(age_z, .keep_all = TRUE)
+
+year_breaks <- seq(
+  floor(min(ndata_t$age, na.rm = TRUE)),
+  ceiling(max(ndata_t$age, na.rm = TRUE)),
+  by = 1
+)
 
 post_t <- fitted(m_age_acc_tr, newdata = ndata_t, re_formula = NA) %>% 
   as_tibble() %>%
@@ -358,7 +327,7 @@ accuracy_by_child_plot_tr  <- ggplot(post_t, aes(x = age, y = Estimate,)) +
   scale_x_continuous(breaks = year_breaks, labels = year_breaks) +
   labs(x = "Age in years", y = "Accuracy") +
   coord_cartesian(ylim = c(0, 1)) +
-  theme_minimal(base_size = 12) 
+  theme_minimal(base_size = 15) 
 
 accuracy_by_child_plot_tr
 
@@ -421,15 +390,14 @@ age_mean <- mean(data_mod$age)
 binned <- data_mod %>%
   mutate(
     bin_year = floor(age),
-    bin_mid  = bin_year + 0.5,
+    bin_mid = bin_year + 0.5,
     bin_mid_c = bin_mid - age_mean
   ) %>%
   filter(!bin_year %in% c(2, 8)) %>%
+  group_by(subjID, bin_year, bin_mid, bin_mid_c) %>%
+  summarise(score = mean(score, na.rm = TRUE), .groups = "drop") %>%
   group_by(bin_year, bin_mid, bin_mid_c) %>%
-  tidyboot_mean(
-    column = score,
-    na.rm = TRUE
-  ) %>%
+  tidyboot_mean(column = score, na.rm = TRUE) %>%
   ungroup()
 
 ndata <- data_mod %>%
@@ -597,10 +565,6 @@ p_icc1PL <- icc1 %>%
 
 p_icc1PL
 
-# ggsave("figures/p_icc1PL.pdf",
-#        plot = p_icc1PL,          
-#        width = 15, height = 10,   
-#        dpi = 6000)  
 ```
 
 ##### Easiness scores
@@ -717,12 +681,13 @@ absolute_fit_table
 
 #### 1.2: 2PL model to extract discrimination
 
-Run script `irt2PL_guess_fit_sel.R` to fit 2PL model with selected items (needed for model comparison)
+Run script `irt2PL.R` to fit 2PL model with selected items (needed for model comparison)
 
 ##### Discrimination and easiness from 2PL
+##### Supplementary material - Figure 2
 
 ```{r}
-# irt2PL <- readRDS("../saves/irt2PL_guess_fit_sel.rds")
+# irt2PL <- readRDS("../saves/irt2PL.rds")
 
 ## Item Easiness Estimates and Discrimination 
 
@@ -746,23 +711,23 @@ disc_2PL <- readRDS("../saves/disc_2PL.rds")
 
 easiness_2PL <- readRDS("../saves/easiness_2PL.rds")
 
-# discrimination_2PL <- ranef(irt2PL)$task[, , "logalpha_Intercept"] %>% # ranef(): deviations around 1; use coef() to have full coefficients
-#   # exp() %>% # transforms values from the log-discrimination scale to positive disc. scale
+# discrimination_2PL <- coef(irt2PL)$task[, , "logalpha_Intercept"] %>% # ranef(): deviations around 0; use coef() to have full coefficients
 #   as.data.frame() %>%
 #   rownames_to_column("task") %>%
-#   mutate(parameter = "discrimination") # discrimination higher than 1: steep slope.
+#   mutate(
+#     across(c(Estimate, Q2.5, Q97.5), exp),
+#     parameter = "discrimination" # discrimination higher than 1: steep slope.
+#   )
 # saveRDS(discrimination_2PL, "../saves/discrimination_2PL.rds")
 
-discrimination_2PL <- readRDS("../saves/discrimination_2PL.rds")
-
-params2PL <- bind_rows(easiness_2PL, discrimination_2PL) # easiness x discrimination
+discrimination_2PL <- readRDS("../saves/discrimination_2PL.rds") # we use 
 
 # Plot
 
 ggplot(discrimination_2PL, aes(x = task, y = Estimate)) +
   geom_point() +
   geom_errorbar(aes(ymin = Q2.5, ymax = Q97.5), width = 0.2) +
-  geom_hline(yintercept = 0, lty = 3, alpha = 0.75) +
+  geom_hline(yintercept = 1, lty = 3, alpha = 0.75) +
   facet_wrap(~parameter, scales = "free_x") +
   coord_flip() +
   labs(x = "Item", y = "Estimate") +
@@ -856,16 +821,6 @@ model_comparison <- model_comparison %>%
   mutate(ratio = ifelse( elpd_diff == 0,0,ratio))%>%
   filter(ratio != 0)%>%
   mutate(ratio = ifelse(model == "2PL", ratio*-1, ratio))%>%
-  arrange(run, disc_penalty)
-
-```
-
-```{r}
-model_comparison <- model_comparison %>%
-  mutate(ratio = abs(elpd_diff) / (2*se_diff))%>%
-  mutate(ratio = ifelse( elpd_diff == 0,0,ratio))%>%
-  filter(ratio != 0)%>%
-  mutate(ratio = ifelse(model == "m2PL", ratio*-1, ratio))%>%
   arrange(run, k)
 
 model_comparison_plot <- model_comparison %>%
@@ -891,7 +846,7 @@ sel_by_k <- model_comparison %>% # table with items for each subset
   dplyr::select(k, items) %>%
   distinct() %>%
   group_by(k) %>%
-  slice(1) %>%
+  slice(1) %>% # first subset for each size, but doesn't matter because we only had 1 run
   unnest(items) %>%
   rename(item = items) %>%
   distinct(k, item)
@@ -938,8 +893,7 @@ final_item_set <- sel_by_k %>%
   dplyr::pull(item)
 
 # saveRDS(final_item_set, "../saves/final_item_set.rds")
-
-final_item_set <- readRDS("../saves/final_item_set.rds")
+# final_item_set <- readRDS("../saves/final_item_set.rds")
 
 ```
 
@@ -1095,15 +1049,12 @@ ggsave(
 #   backend = "cmdstanr"
 # ) %>% add_criterion("loo", cores = 2, ndraws = 2000)
 # 
-# saveRDS(final_items_dif_guess, "../saves/final_items_dif_sex.rds")
+# saveRDS(final_items_dif_sex, "../saves/final_items_dif_sex.rds")
 
-# final_items_dif_sex <- readRDS("../saves/final_items_dif_guess.rds")
-# final_items_dif_sex
-# 
+# final_items_dif_sex <- readRDS("../saves/final_items_dif_sex.rds")
 # dif_sex_draws <- as_draws_df(final_items_dif_sex)
-# 
-# dif_sex_draws <- saveRDS(dif_sex_draws, "../saves/dif_sex_draws.rds")
-dif_sex_draws <- readRDS("../saves/dif_sex_draws.rds")
+# saveRDS(dif_sex_draws, "../saves/dif_sex_draws.rds")
+# dif_sex_draws <- readRDS("../saves/dif_sex_draws.rds")
 
 ```
 
@@ -1132,6 +1083,21 @@ final_dif_sex <- readRDS("../saves/model_params_dif_sex.rds")
 
 # If an item shows very different effects across sexes (and the intervals don’t overlap much), that suggests DIF by sex
 
+
+dif_wide <- final_dif_sex %>%
+  pivot_wider(
+    names_from = sex,
+    values_from = c(mode, uci, lci)
+  )
+
+cor_result <- cor.test(
+  dif_wide$mode_w,
+  dif_wide$mode_m,
+  method = "pearson"
+)
+
+cor_result
+
 pdif <- final_dif_sex%>%
   pivot_wider(names_from = sex, values_from = c(mode,uci,lci))%>%
   ggplot(., aes(x = mode_w, y = mode_m))+
@@ -1143,7 +1109,7 @@ pdif <- final_dif_sex%>%
   aes(
     label = paste(
       after_stat(r.label),
-      '~~italic(p) < .001'
+      "~~", format_p_plotmath(cor_result$p.value)
     )
   ),
     cor.coef.name = "r",
@@ -1163,6 +1129,7 @@ pdif <- final_dif_sex%>%
 
 pdif
 
+
 ```
 
 # Validation
@@ -1174,13 +1141,14 @@ data_val <- read_csv("../data/data_validation.csv")%>% # dataset for validation 
 data_orev <- read.csv("../data/orev_data.csv") # data orev
 
 data_p <- data_val %>%
+  filter(task %in% final_item_set)%>%
   dplyr::select(id, scorePrabat, age, sex) %>%
   group_by(id) %>%
   summarise(
     proportion_correct_p = mean(scorePrabat, na.rm = TRUE),
     age = first(age),
     sum_p_score = sum(scorePrabat, na.rm = TRUE),
-    sex = sex,
+    sex = first(sex),
     .groups = "drop"
   )
 
@@ -1262,11 +1230,11 @@ r_partial <- cor(
 
 points <- merged_data %>%
   distinct(id, proportion_correct_o, proportion_correct_p) %>%
-  count(proportion_correct_o, proportion_correct_p, name = "n")
+  count(proportion_correct_o, proportion_correct_p)
 
 points_adj <- merged_data %>%
   distinct(id, vocab_resid, prag_resid) %>%
-  count(vocab_resid, prag_resid, name = "n")
+  count(vocab_resid, prag_resid)
 
 p_val <- ggplot(
   merged_data,
@@ -1275,19 +1243,19 @@ p_val <- ggplot(
   ) +
   geom_point(
     data = points, # not adjusted
-    position = position_jitter(width = 0.1, height = 0.1),
-    size = 1,
+    # position = position_jitter(width = 0.1, height = 0.1),
+    aes(size=n),
     alpha = .2
+  )  +
+  scale_size_continuous(
+    name = "Count",
+    breaks = c(5, 10)
   ) +
   geom_smooth(
     method = "lm",
     se = TRUE,
     level = 0.95,
     color = "green4",
-  ) +
-  scale_size_continuous(
-    name = "N",
-    range = c(1, 5)
   ) +
   labs(
     x = "Vocabulary performance",
@@ -1296,11 +1264,11 @@ p_val <- ggplot(
   theme_minimal(base_size = 12) +
   annotate(
     "text",
-    x = 0.8,
+    x = 0.7,
     y = 0.2,
     label = paste0(
       "italic(r) == ", round(r, 2),
-      "*','~~italic(p) < .001"
+      "*','~~", format_p_plotmath(r_raw$p.value)
     ),
     parse = TRUE,
     hjust = 0,
@@ -1335,11 +1303,11 @@ p_val_adj <- ggplot(
   theme_minimal(base_size = 12) +
   annotate(
     "text",
-    x = 0.8,
-    y = 0.2,
+    x = 0.25,
+    y = 0.30,
     label = paste0(
-      "italic(r) == ", round(r, 2),
-      "*','~~italic(p) < .001"
+      "italic(r) == ", round(r_partial, 2),
+      "*','~~", format_p_plotmath(adjusted_r$p.value)
     ),
     parse = TRUE,
     hjust = 0,
@@ -1416,6 +1384,7 @@ age_summary_trr # demographic information
 
 data_trr %>%
   filter(did_both) %>%
+  filter(same_n_items == TRUE)%>%
   distinct(id, task) %>%
   count(id) 
 
@@ -1440,7 +1409,7 @@ data_rel_prop <- data_trr %>%
 ## Correlation between proportion scores
 
 ```{r}
-cor.test(data_rel_prop$one, data_rel_prop$two, method = "pearson", use = "complete.obs")
+retest_test <- cor.test(data_rel_prop$one, data_rel_prop$two, method = "pearson", use = "complete.obs")
 
 r_trr <- cor(data_rel_prop$one, data_rel_prop$two, method = "pearson", use = "complete.obs")
 ```
@@ -1452,21 +1421,16 @@ points_trr <- data_rel_prop %>%
   distinct(id, two, one) %>%
   count(two, one, name = "n")
 
-p_trr <- ggplot(
-  data_rel_prop,
-  aes(x = two,
-      y = one)
-  ) +
-  geom_point(
-    position = position_jitter(width = 0.1, height = 0.1),
-    size = 1,
-    alpha = 0.2
-  ) +
-  geom_smooth(
-    method = "lm",
-    se = TRUE,
-    level = 0.95,
-    color = "green4",
+retest_paired <- data_rel_prop %>%
+  dplyr::filter(is.finite(one), is.finite(two))
+
+p_trr <- ggplot(retest_paired, aes(x = two, y = one)) +
+  geom_point(data = points_trr, aes(size = n), alpha = 0.2) +
+  geom_smooth(method = "lm", se = TRUE, color = "green4") +
+  # Continue with your existing labels, theme, and annotation.
+  scale_size_continuous(
+    name = "Count",
+    breaks = c(3, 6)
   ) +
   labs(
     x = "Test Point 2",
@@ -1475,11 +1439,11 @@ p_trr <- ggplot(
   theme_minimal(base_size = 12)+
   annotate(
     "text",
-    x = 0.8,
+    x = 0.7,
     y = 0.4,
     label = paste0(
       "italic(r) == ", round(r_trr, 2),
-      "*','~~italic(p) < .001"
+      "*','~~", format_p_plotmath(retest_test$p.value)
     ),
     parse = TRUE,
     hjust = 0,
@@ -1488,7 +1452,24 @@ p_trr <- ggplot(
 
 p_trr
 
-figure_3 <- plot_grid(plot_grid(pdif, p_trr, p_val, align = 'h', ncol = 3, labels = c("A","B","C")))
+
+shared_size <- scale_size_continuous(
+  name = "Count",
+  limits = range(c(points_trr$n, points$n), na.rm = TRUE),
+  breaks = c(1, 2, 5, 10),
+  range = c(1.5, 6)
+)
+
+p_trr <- p_trr + shared_size + guides(size = "none")
+p_val <- p_val + shared_size + theme(legend.position = "right")
+
+figure_3 <- plot_grid(
+  pdif, p_trr, p_val,
+  align = "h",
+  ncol = 3,
+  labels = c("A", "B", "C"),
+  rel_widths = c(1, 0.90, 1)
+)
 
 ggsave(
   "../figures/figure_3.png",
