@@ -1,6 +1,6 @@
 # PraBat: An item response theory-based test battery to assess individual differences in pragmatic abilities in preschool children from different cultural backgrounds.
 
-Data and analysis scripts associated with the following paper:  Carraro, C., Waffen, P., Küçükerdoğan, P., Yiğit, E. A., Odedra, M. J., Zeidler, H., Küntay, A., Haun D., & Bohn M., (2026). PraBat: An item response theory-based test battery to assess individual differences in pragmatic abilities in preschool children from different cultural backgrounds. 
+Data and analysis scripts associated with the following paper:  Carraro, C., Waffen, P., Küçükerdoğan, P., Yiğit, E. A., Odedra, M. J., Zeidler, H., Küntay, A., Haun D., & Bohn M., (2026). PraBat: An item response theory-based test battery to assess individual differences in pragmatic abilities in preschool children from different cultural backgrounds. (link to preprint: https://osf.io/preprints/psyarxiv/db6u4_v1)
 
 Link to task (constantly updated): https://devpsy.web.leuphana.de/prabat
 
